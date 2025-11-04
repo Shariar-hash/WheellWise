@@ -163,23 +163,8 @@ export default function Room({ params }: { params: { code: string } }) {
 
     setupRealtimeSubscription();
 
-    // Poll for participant updates every 3 seconds as backup
-    const participantPoll = setInterval(async () => {
-      const { data: roomData } = await supabase
-        .from('room_state')
-        .select('participants')
-        .eq('code', roomCode)
-        .single();
-      
-      if (roomData && JSON.stringify(roomData.participants) !== JSON.stringify(participants)) {
-        console.log('Participant poll update:', roomData.participants);
-        setParticipants(roomData.participants || []);
-      }
-    }, 3000);
-
     return () => {
       console.log('Cleaning up Supabase subscription');
-      clearInterval(participantPoll);
       
       if (channel) {
         supabase.removeChannel(channel);
@@ -203,7 +188,7 @@ export default function Room({ params }: { params: { code: string } }) {
       };
       removeParticipant();
     };
-  }, [roomCode, name, isOwner, isClient, participants]);
+  }, [roomCode, name, isOwner, isClient]);
 
   async function sendMessage() {
     if (chat.trim() && connected) {
