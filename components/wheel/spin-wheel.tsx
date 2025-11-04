@@ -226,14 +226,23 @@ export default function SpinWheel({
       setIsSpinning(false)
       fireConfetti()
       
-      // Calculate winner based on where pointer actually lands
-      const winningIndex = calculateWinningSegment(newFinalRotation)
-      
-      if (onSpinComplete && validOptions[winningIndex]) {
-        onSpinComplete({
-          label: validOptions[winningIndex].label || validOptions[winningIndex].id,
-          option: validOptions[winningIndex]
-        })
+      // Only call onSpinComplete if no targetResult (local mode)
+      // When targetResult exists, the parent component handles the result
+      if (!targetResult && onSpinComplete) {
+        // Calculate winner based on where pointer actually lands
+        const winningIndex = calculateWinningSegment(newFinalRotation)
+        
+        if (validOptions[winningIndex]) {
+          onSpinComplete({
+            label: validOptions[winningIndex].label || validOptions[winningIndex].id,
+            option: validOptions[winningIndex]
+          })
+        }
+      } else if (targetResult) {
+        // Verify we landed on the correct result
+        const winningIndex = calculateWinningSegment(newFinalRotation)
+        const landedOn = validOptions[winningIndex]?.label || 'unknown'
+        console.log('🎯 Verification: Target was', targetResult, ', landed on', landedOn, landedOn === targetResult ? '✅' : '❌');
       }
     }, spinDuration * 1000)
   }

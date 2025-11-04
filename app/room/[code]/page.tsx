@@ -38,6 +38,11 @@ export default function Room({ params }: { params: { code: string } }) {
     setIsClient(true);
   }, []);
 
+  // Debug messages
+  useEffect(() => {
+    console.log('💬 Messages updated:', messages.length, messages);
+  }, [messages]);
+
   useEffect(() => {
     if (!isClient) return;
     
@@ -458,9 +463,7 @@ export default function Room({ params }: { params: { code: string } }) {
                 <p>No messages yet. Start the conversation!</p>
               </div>
             ) : (
-              messages.map((m, i) => {
-                console.log('🖼️ Rendering message:', i, m);
-                return (
+              messages.map((m, i) => (
                 <div key={i} className={`mb-3 flex ${m.name === name ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex items-start gap-2 max-w-xs ${m.name === name ? 'flex-row-reverse' : 'flex-row'}`}>
                     {/* Profile Avatar */}
@@ -494,7 +497,7 @@ export default function Room({ params }: { params: { code: string } }) {
                     </div>
                   </div>
                 </div>
-              )})
+              ))
             )}
           </div>
           
