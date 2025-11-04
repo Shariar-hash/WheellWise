@@ -166,9 +166,10 @@ export default function SpinWheel({
     // Normalize the rotation to 0-360 range
     const normalized = ((finalRotationValue % 360) + 360) % 360
     
-    // The pointer is at the top (0°). After wheel rotates, we need to find which segment is at 0°
-    // Since wheel rotates clockwise, the segment at pointer is at angle: (360 - normalized) % 360
-    const pointerAngle = (360 - normalized + 360) % 360
+    // The pointer is at the top (12 o'clock). Segments are drawn with -90° offset.
+    // So pointer at top = 90° in segment coordinate system
+    // After wheel rotates by 'normalized' degrees clockwise, find which segment is at 90°
+    const pointerAngle = (90 - normalized + 360) % 360
     
     // Find which segment the pointer lands on
     const winner = segments.find(
@@ -220,12 +221,13 @@ export default function SpinWheel({
     const targetSegment = targetSegmentData.seg
     
     // Calculate angle to land on the center of the selected segment
-    // Pointer is at top (0°), so we need to rotate the wheel so the segment center aligns with top
+    // Segments are drawn with -90° offset (starting at 3 o'clock instead of 12 o'clock)
+    // Pointer is at top (12 o'clock = 0°)
     const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2
     
-    // The wheel rotates clockwise, so to get a segment to the top (pointer at 0°),
-    // we need to rotate by (360 - segmentCenter) degrees
-    const targetAngle = (360 - segmentCenter + 360) % 360
+    // Account for the -90° drawing offset: pointer at 0° = segment at 90° in our coordinate system
+    // To align segment center with pointer (top), rotate wheel so (segmentCenter) ends up at 90°
+    const targetAngle = (90 - segmentCenter + 360) % 360
     
     // Generate rotation (multiple full spins + targetAngle)
     const fullSpins = 5 + Math.floor(Math.random() * 3) // 5-7 full rotations
