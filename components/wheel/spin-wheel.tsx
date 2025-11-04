@@ -171,10 +171,24 @@ export default function SpinWheel({
     // After wheel rotates by 'normalized' degrees clockwise, find which segment is at 90°
     const pointerAngle = (90 - normalized + 360) % 360
     
+    console.log('🎯 Calculate winner:', {
+      finalRotation: finalRotationValue,
+      normalized,
+      pointerAngle,
+      segments: segments.map(s => ({ 
+        label: s.label, 
+        start: s.startAngle, 
+        end: s.endAngle, 
+        contains: pointerAngle >= s.startAngle && pointerAngle < s.endAngle 
+      }))
+    });
+    
     // Find which segment the pointer lands on
     const winner = segments.find(
       seg => pointerAngle >= seg.startAngle && pointerAngle < seg.endAngle
     ) || segments[segments.length - 1] // fallback edge case
+    
+    console.log('🏅 Winner found:', { label: winner?.label, index: winner?.index });
     
     return winner?.index || 0
   }
@@ -229,6 +243,14 @@ export default function SpinWheel({
     // To align segment center with pointer (top), rotate wheel so (segmentCenter) ends up at 90°
     const targetAngle = (90 - segmentCenter + 360) % 360
     
+    console.log('🎯 Spin calculation:', {
+      selectedOption: selectedOption.label,
+      selectedIndex,
+      targetSegment: { start: targetSegment.startAngle, end: targetSegment.endAngle, center: segmentCenter },
+      targetAngle,
+      allSegments: segments.map(s => ({ label: s.label, start: s.startAngle, end: s.endAngle }))
+    });
+    
     // Generate rotation (multiple full spins + targetAngle)
     const fullSpins = 5 + Math.floor(Math.random() * 3) // 5-7 full rotations
     const extraRotation = fullSpins * 360
@@ -245,6 +267,16 @@ export default function SpinWheel({
       
       // Calculate winner based on where pointer actually lands
       const winningIndex = calculateWinningSegment(newFinalRotation)
+      const actualWinner = validOptions[winningIndex];
+      
+      console.log('🏆 Spin result verification:', {
+        expectedResult: selectedOption.label,
+        actualWinner: actualWinner?.label,
+        finalRotation: newFinalRotation,
+        normalizedRotation: ((newFinalRotation % 360) + 360) % 360,
+        winningIndex,
+        matches: selectedOption.label === actualWinner?.label
+      });
       
       if (onSpinComplete && validOptions[winningIndex]) {
         onSpinComplete({
