@@ -79,13 +79,30 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Stats Section */}
+      {/* Why Choose WheelWise */}
       <section className="bg-slate-800/30 rounded-2xl p-8 border border-slate-700">
-        <div className="grid md:grid-cols-4 gap-8 text-center">
-          <StatItem label="Total Spins" value="1M+" />
-          <StatItem label="Active Wheels" value="50K+" />
-          <StatItem label="Live Rooms" value="500+" />
-          <StatItem label="Users" value="100K+" />
+        <h2 className="text-3xl font-bold text-center text-white mb-8">Why Choose WheelWise?</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <BenefitCard 
+            emoji="🎯"
+            title="100% Fair"
+            description="Transparent algorithm ensures every spin is truly random"
+          />
+          <BenefitCard 
+            emoji="⚡"
+            title="Lightning Fast"
+            description="Instant room creation and real-time synchronization"
+          />
+          <BenefitCard 
+            emoji="🎨"
+            title="Fully Customizable"
+            description="Design your wheel exactly how you want it"
+          />
+          <BenefitCard 
+            emoji="🌐"
+            title="Collaborate Live"
+            description="Share rooms and make decisions together in real-time"
+          />
         </div>
       </section>
 
@@ -143,11 +160,16 @@ function FeatureCard({ icon, title, description, color }: {
   )
 }
 
-function StatItem({ label, value }: { label: string; value: string }) {
+function BenefitCard({ emoji, title, description }: { 
+  emoji: string
+  title: string
+  description: string 
+}) {
   return (
-    <div>
-      <div className="text-4xl font-bold text-neon-blue mb-2">{value}</div>
-      <div className="text-gray-400">{label}</div>
+    <div className="text-center space-y-3">
+      <div className="text-5xl">{emoji}</div>
+      <h3 className="text-xl font-bold text-white">{title}</h3>
+      <p className="text-gray-400">{description}</p>
     </div>
   )
 }

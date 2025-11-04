@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -22,6 +22,7 @@ export default function Room({ params }: { params: { code: string } }) {
   const [joinNotification, setJoinNotification] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [spinTrigger, setSpinTrigger] = useState(0); // Trigger for synchronizing spins
 
   // Wheel options - make them manageable
   const [wheelOptions, setWheelOptions] = useState([
@@ -79,7 +80,24 @@ export default function Room({ params }: { params: { code: string } }) {
           (payload: any) => {
             console.log('Room state updated:', payload);
             if (payload.new) {
-              setParticipants(payload.new.participants || []);
+              const newParticipants = payload.new.participants || [];
+              const oldParticipants = participants;
+              
+              // Check for new participants
+              const joinedUsers = newParticipants.filter((p: string) => !oldParticipants.includes(p));
+              const leftUsers = oldParticipants.filter(p => !newParticipants.includes(p));
+              
+              if (joinedUsers.length > 0) {
+                setJoinNotification(`${joinedUsers.join(', ')} joined the room 🎉`);
+                setTimeout(() => setJoinNotification(""), 3000);
+              }
+              
+              if (leftUsers.length > 0) {
+                setJoinNotification(`${leftUsers.join(', ')} left the room 👋`);
+                setTimeout(() => setJoinNotification(""), 3000);
+              }
+              
+              setParticipants(newParticipants);
               setWheelOptions(payload.new.wheel_options || []);
             }
           }
@@ -106,6 +124,7 @@ export default function Room({ params }: { params: { code: string } }) {
             if (payload.new) {
               setIsSpinning(true);
               setResult("");
+              setSpinTrigger(prev => prev + 1); // Trigger wheel spin animation
               
               // Show result after animation
               setTimeout(() => {
@@ -334,6 +353,7 @@ export default function Room({ params }: { params: { code: string } }) {
           
           <div className="flex justify-center mb-4">
             <SpinWheel
+              key={spinTrigger}
               options={wheelOptions}
               spinning={isSpinning}
               onSpinComplete={(result: any) => {
