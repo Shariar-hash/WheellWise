@@ -180,43 +180,51 @@ export default function SpinWheel({
 
     setIsSpinning(true)
 
-    // If targetResult is provided, calculate exact rotation to land on it
-    let targetAngle = Math.random() * 360; // Default random
+    // Weight-based random selection from options
+    const totalWeight = validOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0)
+    let random = Math.random() * totalWeight
+    let selectedOption = validOptions[0]
     
-    if (targetResult) {
-      // Find the target option's segment
-      const segments = getSegments();
-      const targetSegment = segments.find(seg => seg.label === targetResult);
-      
-      if (targetSegment) {
-        // Calculate angle to land pointer on center of target segment
-        const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2;
-        // Pointer is at top (0 degrees), so we need wheel to rotate so segment center is at top
-        targetAngle = (360 - segmentCenter) % 360;
-        console.log('🎯 Target segment:', targetSegment.label, 'center:', segmentCenter, 'targetAngle:', targetAngle);
+    for (const option of validOptions) {
+      random -= (option.weight || 1)
+      if (random <= 0) {
+        selectedOption = option
+        break
       }
     }
-
-    // Generate consistent rotation based on targetResult to sync across clients
-    // Use a simple hash of the targetResult string to get consistent extra rotations
-    let extraRotations = 3000; // Default 3000 degrees (8+ full rotations)
+    
+    // If targetResult is provided, use it instead of random selection
     if (targetResult) {
-      // Create consistent "random" based on result string
-      let hash = 0;
-      for (let i = 0; i < targetResult.length; i++) {
-        hash = ((hash << 5) - hash) + targetResult.charCodeAt(i);
-        hash = hash & hash; // Convert to 32bit integer
+      const targetOption = validOptions.find(opt => opt.label === targetResult)
+      if (targetOption) {
+        selectedOption = targetOption
       }
-      // Use hash to get consistent rotation between 2500-3500 degrees
-      extraRotations = 2500 + (Math.abs(hash) % 1000);
-    } else {
-      extraRotations = 2500 + Math.random() * 1000;
     }
     
-    const totalRotation = extraRotations + targetAngle;
-    const newFinalRotation = rotation + totalRotation;
-
-    console.log('🎡 Spinning to:', newFinalRotation, 'degrees (extra:', extraRotations, '+ target:', targetAngle, ')');
+    // Find the index of the selected option
+    const selectedIndex = validOptions.findIndex(opt => opt.label === selectedOption.label)
+    
+    // Calculate the segments
+    const segments = getSegments()
+    
+    // Find all segments that match the selected option
+    const matchingSegments = segments
+      .map((seg, index) => ({ seg, index }))
+      .filter(({ seg }) => seg.label === selectedOption.label)
+    
+    // Pick a random matching segment (for visual variety)
+    const targetSegmentData = matchingSegments[Math.floor(Math.random() * matchingSegments.length)]
+    const targetSegment = targetSegmentData.seg
+    
+    // Calculate angle to land on the center of the selected segment
+    const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2
+    const targetAngle = (360 - segmentCenter) % 360
+    
+    // Generate rotation (multiple full spins + targetAngle)
+    const fullSpins = 5 + Math.floor(Math.random() * 3) // 5-7 full rotations
+    const extraRotation = fullSpins * 360
+    const totalRotation = extraRotation + targetAngle
+    const newFinalRotation = rotation + totalRotation
     
     setRotation(newFinalRotation)
     setFinalRotation(newFinalRotation)
@@ -226,23 +234,14 @@ export default function SpinWheel({
       setIsSpinning(false)
       fireConfetti()
       
-      // Only call onSpinComplete if no targetResult (local mode)
-      // When targetResult exists, the parent component handles the result
-      if (!targetResult && onSpinComplete) {
-        // Calculate winner based on where pointer actually lands
-        const winningIndex = calculateWinningSegment(newFinalRotation)
-        
-        if (validOptions[winningIndex]) {
-          onSpinComplete({
-            label: validOptions[winningIndex].label || validOptions[winningIndex].id,
-            option: validOptions[winningIndex]
-          })
-        }
-      } else if (targetResult) {
-        // Verify we landed on the correct result
-        const winningIndex = calculateWinningSegment(newFinalRotation)
-        const landedOn = validOptions[winningIndex]?.label || 'unknown'
-        console.log('🎯 Verification: Target was', targetResult, ', landed on', landedOn, landedOn === targetResult ? '✅' : '❌');
+      // Calculate winner based on where pointer actually lands
+      const winningIndex = calculateWinningSegment(newFinalRotation)
+      
+      if (onSpinComplete && validOptions[winningIndex]) {
+        onSpinComplete({
+          label: validOptions[winningIndex].label || validOptions[winningIndex].id,
+          option: validOptions[winningIndex]
+        })
       }
     }, spinDuration * 1000)
   }

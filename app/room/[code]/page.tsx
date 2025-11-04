@@ -38,11 +38,6 @@ export default function Room({ params }: { params: { code: string } }) {
     setIsClient(true);
   }, []);
 
-  // Debug messages
-  useEffect(() => {
-    console.log('💬 Messages updated:', messages.length, messages);
-  }, [messages]);
-
   useEffect(() => {
     if (!isClient) return;
     
