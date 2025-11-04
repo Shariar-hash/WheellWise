@@ -22,7 +22,7 @@ export default function Room({ params }: { params: { code: string } }) {
   const [joinNotification, setJoinNotification] = useState<string>("");
   const [isClient, setIsClient] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [spinTrigger, setSpinTrigger] = useState(0); // Trigger for synchronizing spins
+  const [currentSpinResult, setCurrentSpinResult] = useState<string>("");
 
   // Wheel options - make them manageable
   const [wheelOptions, setWheelOptions] = useState([
@@ -65,6 +65,7 @@ export default function Room({ params }: { params: { code: string } }) {
       // Add current user to participants if not already there
       if (!roomData.participants.includes(name)) {
         const updatedParticipants = [...roomData.participants, name];
+        setParticipants(updatedParticipants); // Update local state immediately
         await supabase
           .from('room_state')
           .update({ participants: updatedParticipants, updated_at: new Date().toISOString() })
@@ -120,16 +121,19 @@ export default function Room({ params }: { params: { code: string } }) {
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'spin_events', filter: `room_code=eq.${roomCode}` },
           (payload: any) => {
-            console.log('New spin event:', payload);
+            console.log('New spin event received:', payload);
             if (payload.new) {
+              console.log('Starting spin with result:', payload.new.result);
+              setCurrentSpinResult(payload.new.result);
               setIsSpinning(true);
               setResult("");
-              setSpinTrigger(prev => prev + 1); // Trigger wheel spin animation
               
               // Show result after animation
               setTimeout(() => {
+                console.log('Showing result:', payload.new.result);
                 setResult(payload.new.result);
                 setIsSpinning(false);
+                setCurrentSpinResult("");
               }, 4000);
             }
           }
@@ -159,8 +163,24 @@ export default function Room({ params }: { params: { code: string } }) {
 
     setupRealtimeSubscription();
 
+    // Poll for participant updates every 3 seconds as backup
+    const participantPoll = setInterval(async () => {
+      const { data: roomData } = await supabase
+        .from('room_state')
+        .select('participants')
+        .eq('code', roomCode)
+        .single();
+      
+      if (roomData && JSON.stringify(roomData.participants) !== JSON.stringify(participants)) {
+        console.log('Participant poll update:', roomData.participants);
+        setParticipants(roomData.participants || []);
+      }
+    }, 3000);
+
     return () => {
       console.log('Cleaning up Supabase subscription');
+      clearInterval(participantPoll);
+      
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -183,18 +203,25 @@ export default function Room({ params }: { params: { code: string } }) {
       };
       removeParticipant();
     };
-  }, [roomCode, name, isOwner, isClient]);
+  }, [roomCode, name, isOwner, isClient, participants]);
 
   async function sendMessage() {
     if (chat.trim() && connected) {
-      await supabase
+      const messageText = chat.trim();
+      setChat(""); // Clear input immediately for better UX
+      
+      const { error } = await supabase
         .from('chat_messages')
         .insert({
           room_code: roomCode,
           user_name: name,
-          message: chat
+          message: messageText
         });
-      setChat("");
+      
+      if (error) {
+        console.error('Error sending message:', error);
+        setChat(messageText); // Restore message if failed
+      }
     }
   }
 
@@ -212,20 +239,20 @@ export default function Room({ params }: { params: { code: string } }) {
   }
 
   async function spinWheel() {
-    console.log('Spin wheel clicked!', { connected, isOwner, roomCode, name });
+    console.log('🎡 Spin wheel clicked!', { connected, isOwner, roomCode, name });
     
     if (!connected) {
-      console.log('Not connected');
+      console.log('❌ Not connected');
       return;
     }
     
     if (!isOwner) {
-      console.log('User is not owner');
+      console.log('❌ User is not owner');
       return;
     }
     
     if (isSpinning) {
-      console.log('Already spinning');
+      console.log('❌ Already spinning');
       return;
     }
 
@@ -233,9 +260,6 @@ export default function Room({ params }: { params: { code: string } }) {
       alert('Please add some wheel options first!');
       return;
     }
-    
-    // Set local spinning state
-    setIsSpinning(true);
     
     // Weight-based random selection
     const totalWeight = wheelOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0);
@@ -250,16 +274,37 @@ export default function Room({ params }: { params: { code: string } }) {
       }
     }
     
-    console.log('Inserting spin event', { roomCode, result: selectedOption.label });
+    console.log('✅ Selected option:', selectedOption.label);
+    console.log('📤 Inserting spin event to Supabase...');
     
-    // Insert spin event - this will trigger realtime subscription
-    await supabase
+    // Set spinning state immediately for owner
+    setIsSpinning(true);
+    setResult("");
+    setCurrentSpinResult(selectedOption.label);
+    
+    // Insert spin event - this will trigger realtime subscription for all participants
+    const { data, error } = await supabase
       .from('spin_events')
       .insert({
         room_code: roomCode,
         user_name: name,
         result: selectedOption.label
-      });
+      })
+      .select();
+    
+    if (error) {
+      console.error('❌ Error inserting spin event:', error);
+      setIsSpinning(false);
+    } else {
+      console.log('✅ Spin event inserted successfully:', data);
+    }
+    
+    // Show result after animation
+    setTimeout(() => {
+      setResult(selectedOption.label);
+      setIsSpinning(false);
+      setCurrentSpinResult("");
+    }, 4000);
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -353,7 +398,6 @@ export default function Room({ params }: { params: { code: string } }) {
           
           <div className="flex justify-center mb-4">
             <SpinWheel
-              key={spinTrigger}
               options={wheelOptions}
               spinning={isSpinning}
               onSpinComplete={(result: any) => {
