@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Zap, Users, Shield, Sparkles } from 'lucide-react'
 
 export default function HomePage() {
@@ -7,10 +8,12 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="text-center space-y-6 py-12">
         <div className="inline-block animate-float">
-          <img 
+          <Image 
             src="/logo.svg" 
-            alt="WheelWise Logo" 
-            className="w-32 h-32 md:w-40 md:h-40 mx-auto mb-6 drop-shadow-2xl"
+            alt="WheelWise Logo"
+            width={160}
+            height={160}
+            className="mx-auto mb-6 drop-shadow-2xl md:w-40 md:h-40"
           />
         </div>
         <div className="inline-block">
@@ -118,7 +121,7 @@ export default function HomePage() {
           href="/wheel/create"
           className="inline-block px-10 py-5 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg text-white text-lg font-bold hover:shadow-2xl hover:scale-110 transition-all neon-border"
         >
-          Get Started - It's Free!
+          Get Started - It&apos;s Free!
         </Link>
       </section>
     </div>

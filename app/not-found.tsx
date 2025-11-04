@@ -9,7 +9,7 @@ export default function NotFound() {
         </div>
         <h2 className="text-3xl font-bold text-white">Page Not Found</h2>
         <p className="text-gray-400 max-w-md mx-auto">
-          The page you're looking for doesn't exist or has been moved.
+          The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
         <Link
           href="/"

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun, User, LogOut, Coins, Menu } from 'lucide-react'
@@ -17,10 +18,12 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <img 
+            <Image 
               src="/logo.svg" 
               alt="WheelWise Logo" 
-              className="w-12 h-12 hover:scale-110 transition-transform duration-300"
+              width={48}
+              height={48}
+              className="hover:scale-110 transition-transform duration-300"
             />
             <span className="text-xl font-bold text-white">WheelWise</span>
           </Link>
