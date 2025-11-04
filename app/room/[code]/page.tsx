@@ -103,7 +103,16 @@ export default function Room({ params }: { params: { code: string } }) {
               }
               
               setParticipants(newParticipants);
-              setWheelOptions(payload.new.wheel_options || []);
+              
+              // Only update wheel options if they're valid (have proper structure)
+              const newWheelOptions = payload.new.wheel_options || [];
+              console.log('🎯 Wheel options from DB:', newWheelOptions);
+              if (newWheelOptions.length > 0 && newWheelOptions[0].id && newWheelOptions[0].label) {
+                console.log('✅ Valid wheel options, updating state');
+                setWheelOptions(newWheelOptions);
+              } else {
+                console.log('⚠️ Invalid wheel options in payload, keeping current state');
+              }
             }
           }
         )
@@ -260,6 +269,7 @@ export default function Room({ params }: { params: { code: string } }) {
 
   async function spinWheel() {
     console.log('🎡 Spin wheel clicked!', { connected, isOwner, roomCode, name });
+    console.log('🎯 Current wheel options:', wheelOptions);
     
     if (!connected) {
       console.log('❌ Not connected');
@@ -281,12 +291,20 @@ export default function Room({ params }: { params: { code: string } }) {
       return;
     }
     
-    // Weight-based random selection
-    const totalWeight = wheelOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0);
-    let random = Math.random() * totalWeight;
-    let selectedOption = wheelOptions[0];
+    // Validate wheel options have proper structure
+    const validOptions = wheelOptions.filter(opt => opt && opt.id && opt.label && typeof opt.label === 'string');
+    if (validOptions.length === 0) {
+      console.error('❌ No valid wheel options found!', wheelOptions);
+      alert('Error: Wheel options are corrupted. Please refresh the page.');
+      return;
+    }
     
-    for (const option of wheelOptions) {
+    // Weight-based random selection
+    const totalWeight = validOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0);
+    let random = Math.random() * totalWeight;
+    let selectedOption = validOptions[0];
+    
+    for (const option of validOptions) {
       random -= (option.weight || 1);
       if (random <= 0) {
         selectedOption = option;
