@@ -20,6 +20,8 @@ interface SpinWheelProps {
   spinning?: boolean
   spinDuration?: number
   onSpinStart?: () => void
+  targetResult?: string  // The result to land on (for syncing across clients)
+  onWheelClick?: () => void  // Click handler for the wheel
   theme?: {
     backgroundColor?: string
     pointerColor?: string
@@ -33,6 +35,8 @@ export default function SpinWheel({
   spinning = false,
   spinDuration = 4,
   onSpinStart,
+  targetResult,
+  onWheelClick,
   theme = {},
 }: SpinWheelProps) {
   const [rotation, setRotation] = useState(0)
@@ -176,11 +180,26 @@ export default function SpinWheel({
 
     setIsSpinning(true)
 
+    // If targetResult is provided, calculate exact rotation to land on it
+    let targetAngle = Math.random() * 360; // Default random
+    
+    if (targetResult) {
+      // Find the target option's segment
+      const segments = getSegments();
+      const targetSegment = segments.find(seg => seg.label === targetResult);
+      
+      if (targetSegment) {
+        // Calculate angle to land pointer on center of target segment
+        const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2;
+        // Pointer is at top (0 degrees), so we need wheel to rotate so segment center is at top
+        targetAngle = (360 - segmentCenter) % 360;
+      }
+    }
+
     // Generate natural random rotation (2000-4000 degrees for realistic spin)
-    const extraRotations = 2000 + Math.random() * 2000
-    const randomFinalAngle = Math.random() * 360
-    const totalRotation = extraRotations + randomFinalAngle
-    const newFinalRotation = rotation + totalRotation
+    const extraRotations = 2000 + Math.random() * 2000;
+    const totalRotation = extraRotations + targetAngle;
+    const newFinalRotation = rotation + totalRotation;
 
     setRotation(newFinalRotation)
     setFinalRotation(newFinalRotation)
@@ -256,17 +275,13 @@ export default function SpinWheel({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
           <button
             onClick={() => {
-              if (!isSpinning && validOptions.length > 0) {
-                // Call the spin start callback for sound
-                if (onSpinStart) {
-                  onSpinStart()
-                }
-                handleSpin(Math.random())
+              if (!isSpinning && validOptions.length > 0 && onWheelClick) {
+                onWheelClick();
               }
             }}
-            disabled={isSpinning || validOptions.length === 0}
+            disabled={isSpinning || validOptions.length === 0 || !onWheelClick}
             className={`w-20 h-20 rounded-full bg-black text-white font-bold text-sm shadow-xl transition-all ${
-              isSpinning || validOptions.length === 0 
+              isSpinning || validOptions.length === 0 || !onWheelClick
                 ? 'opacity-50 cursor-not-allowed' 
                 : 'hover:scale-110 hover:bg-gray-800'
             }`}

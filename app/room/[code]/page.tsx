@@ -107,13 +107,22 @@ export default function Room({ params }: { params: { code: string } }) {
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_code=eq.${roomCode}` },
           (payload: any) => {
-            console.log('New chat message:', payload);
+            console.log('💬 New chat message received:', payload);
             if (payload.new) {
-              setMessages((prev) => [...prev, {
-                name: payload.new.user_name,
+              console.log('📨 Message data:', {
+                user: payload.new.user_name,
                 message: payload.new.message,
-                timestamp: new Date(payload.new.created_at)
-              }]);
+                room: payload.new.room_code
+              });
+              setMessages((prev) => {
+                const newMessage = {
+                  name: payload.new.user_name,
+                  message: payload.new.message,
+                  timestamp: new Date(payload.new.created_at)
+                };
+                console.log('📝 Adding message to state:', newMessage);
+                return [...prev, newMessage];
+              });
             }
           }
         )
@@ -193,19 +202,23 @@ export default function Room({ params }: { params: { code: string } }) {
   async function sendMessage() {
     if (chat.trim() && connected) {
       const messageText = chat.trim();
+      console.log('📤 Sending message:', { room: roomCode, user: name, message: messageText });
       setChat(""); // Clear input immediately for better UX
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           room_code: roomCode,
           user_name: name,
           message: messageText
-        });
+        })
+        .select();
       
       if (error) {
-        console.error('Error sending message:', error);
+        console.error('❌ Error sending message:', error);
         setChat(messageText); // Restore message if failed
+      } else {
+        console.log('✅ Message sent successfully:', data);
       }
     }
   }
@@ -385,6 +398,8 @@ export default function Room({ params }: { params: { code: string } }) {
             <SpinWheel
               options={wheelOptions}
               spinning={isSpinning}
+              targetResult={currentSpinResult}
+              onWheelClick={isOwner ? spinWheel : undefined}
               onSpinComplete={(result: any) => {
                 console.log('Wheel spin completed locally:', result);
                 // Don't set result here - let it come from server
