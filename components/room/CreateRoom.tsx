@@ -17,7 +17,7 @@ export default function CreateRoom() {
     setError("");
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/room/create`, {
+      const res = await fetch('/api/room/create', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hostName: name }),
