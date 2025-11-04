@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Simple in-memory storage for now (this will be replaced with database later)
-const rooms = new Map<string, {
-  code: string
-  hostName: string
-  participants: string[]
-  createdAt: Date
-}>()
+import { supabase } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,16 +12,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if room exists (for now, just check if it's a valid format)
-    if (roomCode.length !== 6) {
+    // Check if room exists in Supabase
+    const { data: room, error } = await supabase
+      .from('room_state')
+      .select('*')
+      .eq('code', roomCode)
+      .single()
+
+    if (error || !room) {
       return NextResponse.json(
-        { error: 'Invalid room code format' },
-        { status: 400 }
+        { error: 'Room not found' },
+        { status: 404 }
       )
     }
-
-    // For now, we'll assume the room exists if the code format is correct
-    // Later this will check against the database
     
     return NextResponse.json({
       success: true,

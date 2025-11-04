@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
 
-// Room creation API - no database dependency for now
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let result = ''
@@ -21,8 +21,58 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate room code (for now without database uniqueness check)
-    const roomCode = generateRoomCode()
+    // Generate unique room code
+    let roomCode = generateRoomCode()
+    let attempts = 0
+    let isUnique = false
+
+    while (!isUnique && attempts < 10) {
+      const { data } = await supabase
+        .from('room_state')
+        .select('code')
+        .eq('code', roomCode)
+        .single()
+
+      if (!data) {
+        isUnique = true
+      } else {
+        roomCode = generateRoomCode()
+        attempts++
+      }
+    }
+
+    if (!isUnique) {
+      return NextResponse.json(
+        { error: 'Failed to generate unique room code' },
+        { status: 500 }
+      )
+    }
+
+    // Create room in Supabase
+    const { error: insertError } = await supabase
+      .from('room_state')
+      .insert({
+        code: roomCode,
+        name: `${hostName}'s Room`,
+        owner_id: hostName,
+        wheel_options: [
+          { id: '1', label: '🍎 Apple', color: '#ef4444', weight: 1 },
+          { id: '2', label: '🍌 Banana', color: '#eab308', weight: 1 },
+          { id: '3', label: '🍊 Orange', color: '#f97316', weight: 1 },
+          { id: '4', label: '🍇 Grape', color: '#8b5cf6', weight: 1 },
+          { id: '5', label: '🍓 Strawberry', color: '#ec4899', weight: 1 },
+          { id: '6', label: '🥝 Kiwi', color: '#22c55e', weight: 1 }
+        ],
+        participants: []
+      })
+
+    if (insertError) {
+      console.error('Error inserting room:', insertError)
+      return NextResponse.json(
+        { error: 'Failed to create room in database' },
+        { status: 500 }
+      )
+    }
     
     console.log(`Room created: ${roomCode} by ${hostName}`)
     

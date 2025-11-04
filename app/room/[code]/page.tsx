@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { getSocket } from '@/lib/socket'
+import { supabase } from '@/lib/supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import SpinWheel from '@/components/wheel/spin-wheel'
 import WheelManagement from '@/components/wheel/WheelManagement'
 
@@ -39,135 +40,163 @@ export default function Room({ params }: { params: { code: string } }) {
   useEffect(() => {
     if (!isClient) return;
     
-    const socket = getSocket();
+    let channel: RealtimeChannel;
     
-    // Remove any existing listeners to prevent duplicates
-    socket.off('connect');
-    socket.off('disconnect');
-    socket.off('room_joined');
-    socket.off('user_joined');
-    socket.off('user_left');
-    socket.off('receive_message');
-    socket.off('spin_start');
-    socket.off('spin_result');
-    socket.off('wheel_options_updated');
-    socket.off('room_closed');
-    socket.off('error');
-    
-    // Only connect if not already connected
-    if (!socket.connected) {
-      socket.connect();
-    } else {
-      // If already connected, join room immediately
+    const setupRealtimeSubscription = async () => {
+      // Fetch room state
+      const { data: roomData, error: roomError } = await supabase
+        .from('room_state')
+        .select('*')
+        .eq('code', roomCode)
+        .single();
+
+      if (roomError || !roomData) {
+        console.error('Error fetching room:', roomError);
+        setConnected(false);
+        return;
+      }
+
       setConnected(true);
-      socket.emit("join_room", { roomCode, name, isOwner });
-    }
-    
-    socket.on('connect', () => {
-      console.log('Socket connected, joining room...');
-      setConnected(true);
-      socket.emit("join_room", { roomCode, name, isOwner });
-    });
+      setRoomOwner(roomData.owner_id);
+      setParticipants(roomData.participants || []);
+      setWheelOptions(roomData.wheel_options || []);
 
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-      setConnected(false);
-    });
+      // Add current user to participants if not already there
+      if (!roomData.participants.includes(name)) {
+        const updatedParticipants = [...roomData.participants, name];
+        await supabase
+          .from('room_state')
+          .update({ participants: updatedParticipants, updated_at: new Date().toISOString() })
+          .eq('code', roomCode);
+      }
 
-    socket.on("room_joined", ({ owner, participants: roomParticipants }) => {
-      console.log('Room joined event received:', { owner, participants: roomParticipants });
-      setRoomOwner(owner);
-      setParticipants(roomParticipants);
-    });
+      // Subscribe to room updates
+      channel = supabase
+        .channel(`room:${roomCode}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'room_state', filter: `code=eq.${roomCode}` },
+          (payload: any) => {
+            console.log('Room state updated:', payload);
+            if (payload.new) {
+              setParticipants(payload.new.participants || []);
+              setWheelOptions(payload.new.wheel_options || []);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_code=eq.${roomCode}` },
+          (payload: any) => {
+            console.log('New chat message:', payload);
+            if (payload.new) {
+              setMessages((prev) => [...prev, {
+                name: payload.new.user_name,
+                message: payload.new.message,
+                timestamp: new Date(payload.new.created_at)
+              }]);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'spin_events', filter: `room_code=eq.${roomCode}` },
+          (payload: any) => {
+            console.log('New spin event:', payload);
+            if (payload.new) {
+              setIsSpinning(true);
+              setResult("");
+              
+              // Show result after animation
+              setTimeout(() => {
+                setResult(payload.new.result);
+                setIsSpinning(false);
+              }, 4000);
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to room channel');
+          }
+        });
 
-    socket.on("user_joined", ({ name: joinedName, participants: roomParticipants, message }) => {
-      console.log('User joined:', joinedName);
-      setParticipants(roomParticipants);
-      setJoinNotification(message);
-      setTimeout(() => setJoinNotification(""), 3000);
-    });
+      // Load existing chat messages
+      const { data: messages, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_code', roomCode)
+        .order('created_at', { ascending: true });
 
-    socket.on("user_left", ({ name: leftName, participants: roomParticipants, message }) => {
-      console.log('User left:', leftName);
-      setParticipants(roomParticipants);
-      setJoinNotification(message);
-      setTimeout(() => setJoinNotification(""), 3000);
-    });
+      if (!messagesError && messages) {
+        setMessages(messages.map(msg => ({
+          name: msg.user_name,
+          message: msg.message,
+          timestamp: new Date(msg.created_at)
+        })));
+      }
+    };
 
-    socket.on("receive_message", (msg: {name: string, message: string, timestamp: Date}) => {
-      console.log('Message received:', msg);
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    socket.on("spin_start", (data: {result: string, rotation: number, duration: number, spinnerId: string}) => {
-      console.log('Spin start received:', data);
-      setIsSpinning(true);
-      setResult(""); // Clear previous result
-    });
-
-    socket.on("spin_result", (data: {result: string, spinnerId: string}) => {
-      console.log('Spin result received:', data);
-      setResult(data.result);
-      setIsSpinning(false);
-    });
-
-    socket.on("wheel_options_updated", (data: {options: any[], updatedBy: string}) => {
-      console.log('Wheel options updated by:', data.updatedBy);
-      setWheelOptions(data.options);
-    });
-
-    socket.on("room_closed", ({ message }) => {
-      alert(message);
-      window.location.href = "/room";
-    });
-
-    socket.on("error", ({ message }) => {
-      console.error('Socket error:', message);
-      alert(`Error: ${message}`);
-    });
+    setupRealtimeSubscription();
 
     return () => {
-      console.log('Cleaning up - keeping connection but removing listeners');
-      // Don't disconnect, just remove listeners
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('room_joined');
-      socket.off('user_joined');
-      socket.off('user_left');
-      socket.off('receive_message');
-      socket.off('spin_start');
-      socket.off('spin_result');
-      socket.off('wheel_options_updated');
-      socket.off('room_closed');
-      socket.off('error');
+      console.log('Cleaning up Supabase subscription');
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      
+      // Remove user from participants on unmount
+      const removeParticipant = async () => {
+        const { data: roomData } = await supabase
+          .from('room_state')
+          .select('participants')
+          .eq('code', roomCode)
+          .single();
+
+        if (roomData) {
+          const updatedParticipants = roomData.participants.filter((p: string) => p !== name);
+          await supabase
+            .from('room_state')
+            .update({ participants: updatedParticipants, updated_at: new Date().toISOString() })
+            .eq('code', roomCode);
+        }
+      };
+      removeParticipant();
     };
   }, [roomCode, name, isOwner, isClient]);
 
-  function sendMessage() {
+  async function sendMessage() {
     if (chat.trim() && connected) {
-      const socket = getSocket();
-      socket.emit("chat_message", { roomCode, name, message: chat });
+      await supabase
+        .from('chat_messages')
+        .insert({
+          room_code: roomCode,
+          user_name: name,
+          message: chat
+        });
       setChat("");
     }
   }
 
-  function updateWheelOptions(options: any[]) {
+  async function updateWheelOptions(options: any[]) {
     if (!isOwner || !connected) return;
     
     setWheelOptions(options);
-    const socket = getSocket();
-    socket.emit("update_wheel_options", { 
-      roomCode, 
-      options,
-      updatedBy: name 
-    });
+    await supabase
+      .from('room_state')
+      .update({ 
+        wheel_options: options,
+        updated_at: new Date().toISOString()
+      })
+      .eq('code', roomCode);
   }
 
-  function spinWheel() {
+  async function spinWheel() {
     console.log('Spin wheel clicked!', { connected, isOwner, roomCode, name });
     
     if (!connected) {
-      console.log('Not connected to socket');
+      console.log('Not connected');
       return;
     }
     
@@ -202,27 +231,16 @@ export default function Room({ params }: { params: { code: string } }) {
       }
     }
     
-    const socket = getSocket();
+    console.log('Inserting spin event', { roomCode, result: selectedOption.label });
     
-    console.log('Emitting spin_start event', { roomCode, result: selectedOption.label });
-    
-    // Emit spin start to synchronize animation across all clients
-    socket.emit("spin_start", { 
-      roomCode, 
-      result: selectedOption.label,
-      rotation: 2000 + Math.random() * 2000, // 2000-4000 degrees
-      duration: 4 // 4 seconds
-    });
-    
-    // After 4 seconds, emit the final result
-    setTimeout(() => {
-      console.log('Emitting spin_result event', { roomCode, result: selectedOption.label });
-      socket.emit("spin_wheel", { 
-        roomCode, 
-        result: selectedOption.label,
-        rotation: Math.random() * 360 
+    // Insert spin event - this will trigger realtime subscription
+    await supabase
+      .from('spin_events')
+      .insert({
+        room_code: roomCode,
+        user_name: name,
+        result: selectedOption.label
       });
-    }, 4000);
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
