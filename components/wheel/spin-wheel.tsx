@@ -48,29 +48,43 @@ export default function SpinWheel({
   const validOptions = options.filter(option => option.label.trim() !== '')
   // Calculate segments with both count and weight affecting visual size
   const getSegments = () => {
-    // Create expanded array: segments × weight = total slices per option
-    const expandedSlices: any[] = [];
+    // Create slices for each option based on count
+    const slicesByOption: any[][] = [];
     validOptions.forEach((opt, originalIndex) => {
-      const segmentCount = opt.count || 1; // How many slices this option gets
-      const weight = opt.weight || 1; // How large each slice is
+      const segmentCount = opt.count || 1;
+      const weight = opt.weight || 1;
       
-      // Create multiple slices for this option based on count
+      const optionSlices = [];
       for (let i = 0; i < segmentCount; i++) {
-        expandedSlices.push({
+        optionSlices.push({
           ...opt,
           originalIndex,
-          sliceWeight: weight, // Each slice has this weight/size
-          sliceId: `${originalIndex}-${i}` // Unique identifier for this slice
+          sliceWeight: weight,
+          sliceId: `${originalIndex}-${i}`
         });
       }
+      slicesByOption.push(optionSlices);
     });
     
+    // Distribute slices using round-robin to avoid clustering
+    const distributedSlices: any[] = [];
+    const maxCount = Math.max(...slicesByOption.map(slices => slices.length));
+    
+    // Round-robin: take one slice from each option in turn
+    for (let round = 0; round < maxCount; round++) {
+      slicesByOption.forEach(optionSlices => {
+        if (round < optionSlices.length) {
+          distributedSlices.push(optionSlices[round]);
+        }
+      });
+    }
+    
     // Calculate total weighted size
-    const totalWeightedSize = expandedSlices.reduce((sum, slice) => sum + slice.sliceWeight, 0);
+    const totalWeightedSize = distributedSlices.reduce((sum, slice) => sum + slice.sliceWeight, 0);
     
     // Assign angles proportionally based on weight
     let currentAngle = 0;
-    return expandedSlices.map((slice) => {
+    return distributedSlices.map((slice) => {
       const sliceAngle = (slice.sliceWeight / totalWeightedSize) * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + sliceAngle;
