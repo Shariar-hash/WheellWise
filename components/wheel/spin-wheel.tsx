@@ -195,7 +195,7 @@ export default function SpinWheel({
     const segmentAngle = 360 / totalSegments;
     
     // Apply rotation offset to align pointer with result
-    const pointerOffset = 90; // Try 90° offset first, adjust if needed
+    const pointerOffset = -90; // Try -90° offset (opposite direction)
     const normalized = (finalRotationValue + pointerOffset) % 360;
     const resultIndex = Math.floor((360 - normalized) / segmentAngle) % totalSegments;
     
