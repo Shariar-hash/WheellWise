@@ -239,18 +239,23 @@ export default function SpinWheel({
     // Don't use random - this ensures all participants see wheel land on same visual position
     const targetSegment = matchingSegments[0];
     
-    // Calculate target angle
+    // Calculate target angle - use center of segment
     const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2;
     const targetAngle = segmentCenter;
     
-    // Add rotations for animation
-    const extraSpins = 5;
-    const randomOffset = Math.random() * (targetSegment.sliceAngle / 3);
-    const finalRotation = extraSpins * 360 + (360 - targetAngle) + randomOffset;
-
-    const newFinalRotation = rotation + finalRotation;
-    setRotation(newFinalRotation)
-    setFinalRotation(newFinalRotation)
+    // CRITICAL: EXACT same animation for ALL participants
+    // Calculate absolute final position (not relative to current rotation)
+    const extraSpins = 5; // 5 full rotations for smooth animation
+    
+    // Calculate the exact final rotation that points to the target
+    // This is ABSOLUTE - everyone ends at the same angle
+    const absoluteFinalRotation = extraSpins * 360 + (360 - targetAngle);
+    
+    console.log(`🎯 ALL participants spinning to EXACT angle: ${absoluteFinalRotation}° → Result: "${selectedOption.label}"`);
+    
+    // Set the target rotation
+    setRotation(absoluteFinalRotation)
+    setFinalRotation(absoluteFinalRotation)
 
     // Complete spin after animation
     setTimeout(() => {
@@ -281,9 +286,16 @@ export default function SpinWheel({
 
   useEffect(() => {
     if (spinning && !isSpinning) {
-      // Trigger spin with random value (in real app, this comes from server)
-      const randomValue = Math.random()
-      handleSpin(randomValue)
+      // Reset wheel to 0 before spinning for consistent sync
+      console.log('🔄 Resetting wheel to 0° before spin');
+      setRotation(0);
+      setFinalRotation(0);
+      
+      // Small delay to ensure reset is applied
+      setTimeout(() => {
+        const randomValue = Math.random()
+        handleSpin(randomValue)
+      }, 50);
     }
   }, [spinning])
 
