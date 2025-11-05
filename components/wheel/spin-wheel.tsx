@@ -46,19 +46,16 @@ export default function SpinWheel({
 
   // Filter out empty options
   const validOptions = options.filter(option => option.label.trim() !== '')
-  // Calculate proportional segments based on weights
+  // Calculate equal segments (ignore weights for now to fix alignment)
   const getSegments = () => {
-    const totalWeight = validOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0)
-    let currentAngle = 0
+    const totalOptions = validOptions.length;
+    const segmentAngle = 360 / totalOptions;
     
     return validOptions.map((opt, index) => {
-      const portion = (opt.weight || 1) / totalWeight
-      const sliceAngle = portion * 360
-      const startAngle = currentAngle
-      const endAngle = currentAngle + sliceAngle
-      currentAngle = endAngle
+      const startAngle = index * segmentAngle;
+      const endAngle = (index + 1) * segmentAngle;
       
-      return { ...opt, index, startAngle, endAngle, sliceAngle }
+      return { ...opt, index, startAngle, endAngle, sliceAngle: segmentAngle }
     })
   }
 
@@ -149,49 +146,17 @@ export default function SpinWheel({
   const calculateWinningSegment = (finalRotationValue: number) => {
     if (validOptions.length === 0) return 0
     
-    // Calculate proportional segments based on weights
-    const totalWeight = validOptions.reduce((sum, opt) => sum + (opt.weight || 1), 0)
+    // Use your algorithm: simple equal segments approach
+    const totalOptions = validOptions.length;
+    const segmentAngle = 360 / totalOptions;
     
-    let currentAngle = 0
-    const segments = validOptions.map((opt, index) => {
-      const portion = (opt.weight || 1) / totalWeight
-      const sliceAngle = portion * 360
-      const startAngle = currentAngle
-      const endAngle = currentAngle + sliceAngle
-      currentAngle = endAngle
-      
-      return { ...opt, index, startAngle, endAngle, sliceAngle }
-    })
+    // Normalize rotation to 0-360 range
+    const normalizedRotation = ((finalRotationValue % 360) + 360) % 360;
     
-    // Normalize the rotation to 0-360 range
-    const normalized = ((finalRotationValue % 360) + 360) % 360
+    // Calculate which segment the pointer lands on (pointer at top)
+    const index = Math.floor((360 - normalizedRotation) / segmentAngle) % totalOptions;
     
-    // The pointer is at the top (12 o'clock). Segments are drawn with -90° offset.
-    // So pointer at top = 90° in segment coordinate system
-    // After wheel rotates by 'normalized' degrees clockwise, find which segment is at 90°
-    const pointerAngle = (90 - normalized + 360) % 360
-    
-    // Temporarily disable detailed logging to prevent React #418 error
-    // console.log('🎯 Calculate winner:', {
-    //   finalRotation: finalRotationValue,
-    //   normalized,
-    //   pointerAngle,
-    //   segments: segments.map(s => ({ 
-    //     label: s.label, 
-    //     start: s.startAngle, 
-    //     end: s.endAngle, 
-    //     contains: pointerAngle >= s.startAngle && pointerAngle < s.endAngle 
-    //   }))
-    // });
-    
-    // Find which segment the pointer lands on
-    const winner = segments.find(
-      seg => pointerAngle >= seg.startAngle && pointerAngle < seg.endAngle
-    ) || segments[segments.length - 1] // fallback edge case
-    
-    // console.log('🏅 Winner found:', { label: winner?.label, index: winner?.index });
-    
-    return winner?.index || 0
+    return index;
   }
 
   const handleSpin = (resultValue: number) => {
@@ -220,44 +185,21 @@ export default function SpinWheel({
       }
     }
     
+    // Use your algorithm: simple equal segments approach
+    const totalOptions = validOptions.length;
+    const segmentAngle = 360 / totalOptions;
+    
     // Find the index of the selected option
     const selectedIndex = validOptions.findIndex(opt => opt.label === selectedOption.label)
     
-    // Calculate the segments
-    const segments = getSegments()
+    // Calculate target angle using your algorithm
+    const targetAngle = selectedIndex * segmentAngle;
     
-    // Find all segments that match the selected option
-    const matchingSegments = segments
-      .map((seg, index) => ({ seg, index }))
-      .filter(({ seg }) => seg.label === selectedOption.label)
-    
-    // Pick a random matching segment (for visual variety)
-    const targetSegmentData = matchingSegments[Math.floor(Math.random() * matchingSegments.length)]
-    const targetSegment = targetSegmentData.seg
-    
-    // Calculate angle to land on the center of the selected segment
-    // Segments are drawn with -90° offset (starting at 3 o'clock instead of 12 o'clock)
-    // Pointer is at top (12 o'clock = 0°)
-    const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2
-    
-    // Account for the -90° drawing offset: pointer at 0° = segment at 90° in our coordinate system
-    // To align segment center with pointer (top), rotate wheel so (segmentCenter) ends up at 90°
-    const targetAngle = (90 - segmentCenter + 360) % 360
-    
-    // Temporarily disable detailed logging to prevent React #418 error
-    // console.log('🎯 Spin calculation:', {
-    //   selectedOption: selectedOption.label,
-    //   selectedIndex,
-    //   targetSegment: { start: targetSegment.startAngle, end: targetSegment.endAngle, center: segmentCenter },
-    //   targetAngle,
-    //   allSegments: segments.map(s => ({ label: s.label, start: s.startAngle, end: s.endAngle }))
-    // });
-    
-    // Generate rotation (multiple full spins + targetAngle)
-    const fullSpins = 5 + Math.floor(Math.random() * 3) // 5-7 full rotations
-    const extraRotation = fullSpins * 360
-    const totalRotation = extraRotation + targetAngle
-    const newFinalRotation = rotation + totalRotation
+    // Generate final rotation using your algorithm
+    const extraSpins = 5; // number of full spins
+    const randomOffset = Math.random() * (segmentAngle / 3); // small random variation within segment
+    const finalRotation = extraSpins * 360 + (360 - targetAngle) + randomOffset;
+    const newFinalRotation = rotation + finalRotation;
     
     setRotation(newFinalRotation)
     setFinalRotation(newFinalRotation)
