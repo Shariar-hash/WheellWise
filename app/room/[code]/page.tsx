@@ -176,7 +176,7 @@ export default function Room({ params }: { params: { code: string } }) {
       console.log('🔄 Setting up polling for room:', roomCode);
       console.log('⚠️ Realtime not available - using polling every 2 seconds');
       
-      // Poll room state every 2 seconds
+      // Poll room state every 500ms for near real-time sync
       const pollInterval = setInterval(async () => {
         try {
           const { data: currentRoom, error } = await supabase
@@ -242,7 +242,7 @@ export default function Room({ params }: { params: { code: string } }) {
           console.error('Polling error:', error);
           setConnected(false);
         }
-      }, 2000); // Poll every 2 seconds
+      }, 500); // Poll every 500ms for fast sync
       
       // Also poll chat messages
       const pollChat = setInterval(async () => {

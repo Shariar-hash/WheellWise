@@ -222,18 +222,22 @@ export default function SpinWheel({
       }
     }
     
-    // If targetResult is provided, use it instead
+    // If targetResult is provided, use it instead (for multiplayer sync)
     if (targetResult) {
       const targetOption = validOptions.find(opt => opt.label === targetResult)
       if (targetOption) {
         selectedOption = targetOption
+        console.log('🎯 Using target result from server:', targetResult);
       }
     }
     
     // Get all segments and find matching ones
     const segments = getSegments();
     const matchingSegments = segments.filter(seg => seg.label === selectedOption.label);
-    const targetSegment = matchingSegments[Math.floor(Math.random() * matchingSegments.length)];
+    
+    // CRITICAL: Always pick the FIRST matching segment for consistent sync
+    // Don't use random - this ensures all participants see wheel land on same visual position
+    const targetSegment = matchingSegments[0];
     
     // Calculate target angle
     const segmentCenter = (targetSegment.startAngle + targetSegment.endAngle) / 2;
@@ -253,17 +257,14 @@ export default function SpinWheel({
       setIsSpinning(false)
       fireConfetti()
       
-      // Determine the result after the spin completes
-      const resultIndex = calculateWinningSegment(newFinalRotation)
-      const actualWinner = validOptions[resultIndex];
+      // Use the selectedOption (which includes targetResult from server)
+      // This ensures the result matches what was pre-determined
+      console.log(`🎯 Wheel spin complete - Result: "${selectedOption.label}"`);
       
-      const matches = selectedOption.label === actualWinner?.label;
-      console.log(`🎯 Wheel result: Expected "${selectedOption.label}" → Got "${actualWinner?.label}" → ${matches ? '✅ MATCH' : '❌ MISMATCH'}`);
-      
-      if (onSpinComplete && actualWinner) {
+      if (onSpinComplete && selectedOption) {
         onSpinComplete({
-          label: actualWinner.label || actualWinner.id,
-          option: actualWinner
+          label: selectedOption.label || selectedOption.id,
+          option: selectedOption
         })
       }
     }, spinDuration * 1000)
