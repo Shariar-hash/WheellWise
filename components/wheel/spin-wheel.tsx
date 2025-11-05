@@ -46,29 +46,43 @@ export default function SpinWheel({
 
   // Filter out empty options and fix segment counting
   const validOptions = options.filter(option => option.label.trim() !== '')
-  // Create segments based on count and weight
+  // Create segments with alternating distribution (round-robin)
   const getSegments = () => {
-    const allSegments: any[] = [];
-    
-    // Create multiple segments per option based on count
+    // Create arrays of segments per option
+    const segmentsByOption: any[][] = [];
     validOptions.forEach((opt, originalIndex) => {
       const segmentCount = opt.count || 1;
+      const optionSegments = [];
       for (let i = 0; i < segmentCount; i++) {
-        allSegments.push({
+        optionSegments.push({
           ...opt,
           originalIndex,
           segmentId: `${originalIndex}-${i}`,
           weight: opt.weight || 1
         });
       }
+      segmentsByOption.push(optionSegments);
     });
     
+    // Round-robin distribution to prevent clustering
+    const distributedSegments: any[] = [];
+    const maxCount = Math.max(...segmentsByOption.map(segs => segs.length));
+    
+    // Take one segment from each option in turn
+    for (let round = 0; round < maxCount; round++) {
+      segmentsByOption.forEach(optionSegments => {
+        if (round < optionSegments.length) {
+          distributedSegments.push(optionSegments[round]);
+        }
+      });
+    }
+    
     // Calculate total weight for proportional sizing
-    const totalWeight = allSegments.reduce((sum, seg) => sum + seg.weight, 0);
+    const totalWeight = distributedSegments.reduce((sum, seg) => sum + seg.weight, 0);
     
     // Assign angles based on weight
     let currentAngle = 0;
-    return allSegments.map((segment) => {
+    return distributedSegments.map((segment) => {
       const segmentAngle = (segment.weight / totalWeight) * 360;
       const startAngle = currentAngle;
       const endAngle = currentAngle + segmentAngle;
