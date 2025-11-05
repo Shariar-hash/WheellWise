@@ -67,7 +67,7 @@ export default function Header() {
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
                   <Coins className="w-4 h-4 text-yellow-500" />
                   <span className="text-sm font-semibold text-yellow-500">
-                    {session.user?.tokens || 0}
+                    {(session.user as any)?.tokens || 0}
                   </span>
                 </div>
                 <Link

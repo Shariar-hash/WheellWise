@@ -21,7 +21,7 @@ interface WheelOption {
 export default function CreateWheelInRoomPage() {
   const params = useParams()
   const router = useRouter()
-  const roomCode = params.code as string
+  const roomCode = params?.code as string
   
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState('')
