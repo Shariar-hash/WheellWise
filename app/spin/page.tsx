@@ -7,8 +7,8 @@ import toast from 'react-hot-toast'
 
 // Default wheel has YES/NO in alternating pattern
 const createDefaultWheel = () => [
-  { label: 'YES', color: '#22c55e', weight: 1, count: 3 },
-  { label: 'NO', color: '#ef4444', weight: 1, count: 3 },
+  { id: 'yes', label: 'YES', color: '#22c55e', weight: 1, count: 3 },
+  { id: 'no', label: 'NO', color: '#ef4444', weight: 1, count: 3 },
 ]
 
 interface WheelOption {
@@ -160,73 +160,21 @@ export default function SpinPage() {
     oscillator.stop(audioContext.currentTime + 4)
   }
 
-  // Create expanded options for wheel display - alternating pattern for YES/NO
+  // Return options directly - let the wheel component handle expansion
   const getExpandedOptions = () => {
-    const expanded: any[] = []
-    
     // Filter out empty options first
     const validOptions = options.filter(opt => opt.label.trim() !== '')
     
     // If no valid options and not default wheel, show default YES/NO
     if (validOptions.length === 0) {
-      const defaultOptions = createDefaultWheel()
-      const yesOption = defaultOptions[0]
-      const noOption = defaultOptions[1]
-      
-      // Create alternating pattern: YES, NO, YES, NO, YES, NO
-      for (let i = 0; i < 6; i++) {
-        const option = i % 2 === 0 ? yesOption : noOption
-        expanded.push({
-          ...option,
-          id: `fallback-${i}`,
-          weight: option.weight || 1,
-        })
-      }
-      return expanded
+      return createDefaultWheel()
     }
     
-    // Special handling for default YES/NO wheel - create alternating pattern
-    if (isDefaultWheel && validOptions.length === 2 && 
-        validOptions.some(o => o.label === 'YES') && 
-        validOptions.some(o => o.label === 'NO')) {
-      
-      const yesOption = validOptions.find(o => o.label === 'YES')!
-      const noOption = validOptions.find(o => o.label === 'NO')!
-      
-      // Create alternating pattern: YES, NO, YES, NO, YES, NO
-      for (let i = 0; i < 6; i++) {
-        const option = i % 2 === 0 ? yesOption : noOption
-        expanded.push({
-          ...option,
-          id: `opt-${i}`,
-          weight: option.weight || 1,
-        })
-      }
-    } else {
-      // Regular expansion for custom options - distribute segments around wheel
-      const totalCount = validOptions.reduce((sum, opt) => sum + (opt.count || 1), 0)
-      
-      // Create segments in alternating/distributed pattern
-      const segments: any[] = []
-      const maxCount = Math.max(...validOptions.map(opt => opt.count || 1))
-      
-      // Round-robin distribution: take one from each option until all are placed
-      for (let round = 0; round < maxCount; round++) {
-        validOptions.forEach((option, optIndex) => {
-          if (round < (option.count || 1)) {
-            segments.push({
-              ...option,
-              id: `opt-${optIndex}-${round}`,
-              weight: option.weight || 1,
-            })
-          }
-        })
-      }
-      
-      expanded.push(...segments)
-    }
-    
-    return expanded
+    // Return the options with proper id field for wheel component
+    return validOptions.map((opt, index) => ({
+      ...opt,
+      id: opt.id || `opt-${index}` // Ensure id is present
+    }))
   }
 
   const handleSpinComplete = (spinResult: { label: string, option: WheelOption }) => {
