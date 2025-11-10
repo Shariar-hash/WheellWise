@@ -2,15 +2,34 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useSession, signOut } from 'next-auth/react'
 import { useTheme } from 'next-themes'
-import { Moon, Sun, User, LogOut, Coins, Menu } from 'lucide-react'
-import { useState } from 'react'
+import { Moon, Sun, User, LogOut, Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 export default function Header() {
-  const { data: session } = useSession()
   const { theme, setTheme } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/'
+  }
 
   return (
     <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
@@ -39,11 +58,6 @@ export default function Header() {
             <Link href="/wheels" className="text-gray-300 hover:text-white transition">
               Explore
             </Link>
-            {session && (
-              <Link href="/dashboard" className="text-gray-300 hover:text-white transition">
-                Dashboard
-              </Link>
-            )}
           </nav>
 
           {/* Right Actions */}
@@ -62,25 +76,27 @@ export default function Header() {
             </button>
 
             {/* User Menu */}
-            {session ? (
+            {user ? (
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
-                  <Coins className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-semibold text-yellow-500">
-                    {(session.user as any)?.tokens || 0}
-                  </span>
-                </div>
                 <Link
                   href="/profile"
                   className="flex items-center space-x-2 px-3 py-1.5 hover:bg-slate-800 rounded-lg transition"
                 >
-                  <User className="w-5 h-5 text-gray-300" />
+                  {user.user_metadata?.avatar_url ? (
+                    <img 
+                      src={user.user_metadata.avatar_url} 
+                      alt="Profile"
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <User className="w-5 h-5 text-gray-300" />
+                  )}
                   <span className="text-sm text-gray-300 hidden lg:block">
-                    {session.user?.name}
+                    {user.user_metadata?.display_name || user.email?.split('@')[0]}
                   </span>
                 </Link>
                 <button
-                  onClick={() => signOut()}
+                  onClick={handleSignOut}
                   className="p-2 hover:bg-slate-800 rounded-lg transition"
                   aria-label="Sign out"
                 >
@@ -89,7 +105,7 @@ export default function Header() {
               </div>
             ) : (
               <Link
-                href="/auth/signin"
+                href="/auth"
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white font-semibold hover:shadow-lg transition"
               >
                 Sign In
@@ -138,15 +154,6 @@ export default function Header() {
             >
               Leaderboard
             </Link>
-            {session && (
-              <Link
-                href="/dashboard"
-                className="block px-4 py-2 text-gray-300 hover:bg-slate-800 rounded-lg transition"
-                onClick={() => setMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-            )}
           </nav>
         )}
       </div>

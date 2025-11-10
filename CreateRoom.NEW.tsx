@@ -103,23 +103,38 @@ export default function CreateRoom() {
 
   return (
     <div className="flex flex-col items-center gap-3 mt-4">
-      {/* Show signed-in status if logged in */}
-      {user && (
-        <div className="w-full max-w-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+      {/* User Status */}
+      {user ? (
+        <div className="w-full max-w-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
             {user.user_metadata?.avatar_url && (
               <img 
                 src={user.user_metadata.avatar_url} 
                 alt="Profile" 
-                className="w-8 h-8 rounded-full"
+                className="w-10 h-10 rounded-full"
               />
             )}
             <div className="flex-1">
-              <p className="text-sm text-blue-800 dark:text-blue-200 font-semibold">
+              <p className="text-sm text-green-800 dark:text-green-200 font-semibold">
                 Signed in as {user.email}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400">
+                ✓ Your ownership will be saved
               </p>
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="w-full max-w-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
+            ⚠️ Not signed in - Room ownership won't persist
+          </p>
+          <Link 
+            href="/auth"
+            className="text-sm text-yellow-600 dark:text-yellow-400 hover:underline"
+          >
+            Sign in to save your ownership →
+          </Link>
         </div>
       )}
       

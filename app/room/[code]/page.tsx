@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 export default function Room({ params }: { params: { code: string } }) {
   const searchParams = useSearchParams()
   const name = searchParams?.get("name") || "Guest"
-  const isOwner = searchParams?.get("owner") === "true"
+  const isOwnerParam = searchParams?.get("owner") === "true"
   const roomCode = params?.code
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -22,6 +22,8 @@ export default function Room({ params }: { params: { code: string } }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [targetResult, setTargetResult] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(isOwnerParam);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Wheel options - make them manageable
   const [wheelOptions, setWheelOptions] = useState([
@@ -33,6 +35,12 @@ export default function Room({ params }: { params: { code: string } }) {
 
   useEffect(() => {
     setIsClient(true);
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+      }
+    });
   }, []);
 
   // Heartbeat to maintain participant presence  
@@ -85,6 +93,33 @@ export default function Room({ params }: { params: { code: string } }) {
         if (existingRoom) {
           // Room exists, join it
           console.log('📋 Existing room found, joining...');
+          
+          // **OWNERSHIP CHECK - Multiple ways to verify ownership**
+          let isRoomOwner = false;
+          
+          // Method 1: URL parameter says owner=true
+          if (isOwnerParam) {
+            isRoomOwner = true;
+            console.log('👑 Owner via URL parameter');
+          }
+          
+          // Method 2: Logged-in user's email matches room owner's email (persistent ownership)
+          if (currentUser?.email && existingRoom.room_owner_email === currentUser.email) {
+            isRoomOwner = true;
+            console.log('👑 Persistent ownership detected via email!');
+          }
+          
+          // Method 3: User's name matches room owner's name (for non-logged-in users)
+          if (name === existingRoom.room_owner) {
+            isRoomOwner = true;
+            console.log('👑 Ownership detected via name match!');
+          }
+          
+          // Set ownership status
+          if (isRoomOwner) {
+            setIsOwner(true);
+          }
+          
           const isAlreadyInRoom = existingRoom.participants.includes(name);
           
           if (!isAlreadyInRoom) {
@@ -382,6 +417,8 @@ export default function Room({ params }: { params: { code: string } }) {
         .insert({
           room_code: roomCode,
           sender_name: name,
+          sender_email: currentUser?.email || null,
+          sender_image: currentUser?.user_metadata?.avatar_url || null,
           message: messageToSend
         })
         .select()
@@ -808,13 +845,21 @@ export default function Room({ params }: { params: { code: string } }) {
                   <div className={`flex items-start gap-2 max-w-xs ${isMyMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                     {/* Profile Avatar */}
                     <div className="flex-shrink-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                        isMyMessage ? 'bg-blue-500' : 
-                        isOwnerMessage ? 'bg-yellow-500' : 'bg-gray-500'
-                      }`}>
-                        {m.sender_name.charAt(0).toUpperCase()}
-                        {isOwnerMessage && '👑'}
-                      </div>
+                      {m.sender_image ? (
+                        <img 
+                          src={m.sender_image} 
+                          alt={m.sender_name}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
+                          isMyMessage ? 'bg-blue-500' : 
+                          isOwnerMessage ? 'bg-yellow-500' : 'bg-gray-500'
+                        }`}>
+                          {m.sender_name.charAt(0).toUpperCase()}
+                          {isOwnerMessage && '👑'}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Message Bubble */}

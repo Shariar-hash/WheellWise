@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Zap, Users, Shield, Sparkles } from 'lucide-react'
+import ViewCounter from '@/components/analytics/ViewCounter'
 
 export default function HomePage() {
   return (
@@ -79,15 +80,15 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Stats Section */}
-      <section className="bg-slate-800/30 rounded-2xl p-8 border border-slate-700">
+      {/* Stats Section - Removed fake stats */}
+      {/* <section className="bg-slate-800/30 rounded-2xl p-8 border border-slate-700">
         <div className="grid md:grid-cols-4 gap-8 text-center">
           <StatItem label="Total Spins" value="1M+" />
           <StatItem label="Active Wheels" value="50K+" />
           <StatItem label="Live Rooms" value="500+" />
           <StatItem label="Users" value="100K+" />
         </div>
-      </section>
+      </section> */}
 
       {/* Game Modes */}
       <section className="space-y-6">
@@ -124,6 +125,11 @@ export default function HomePage() {
           Get Started - It&apos;s Free!
         </Link>
       </section>
+
+      {/* View Counter */}
+      <div className="flex justify-center">
+        <ViewCounter />
+      </div>
     </div>
   )
 }
