@@ -822,41 +822,57 @@ export default function Room({ params }: { params: { code: string } }) {
                 <p>No messages yet. Start the conversation!</p>
               </div>
             ) : (
-              messages.map((m, i) => (
-                <div key={i} className={`mb-3 flex ${m.sender_name === name ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`flex items-start gap-2 max-w-xs ${m.sender_name === name ? 'flex-row-reverse' : 'flex-row'}`}>
+              messages.map((m, i) => {
+                const isMyMessage = m.sender_name === name;
+                const isOwnerMessage = m.sender_name === roomOwner;
+                
+                // Debug logging
+                console.log(`Message ${i}:`, {
+                  sender: m.sender_name,
+                  message: m.message,
+                  myName: name,
+                  roomOwner: roomOwner,
+                  isMyMessage,
+                  isOwnerMessage,
+                  messageLength: m.message?.length || 0
+                });
+                
+                return (
+                <div key={i} className={`mb-3 flex ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex items-start gap-2 max-w-xs ${isMyMessage ? 'flex-row-reverse' : 'flex-row'}`}>
                     {/* Profile Avatar */}
                     <div className="flex-shrink-0">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                        m.sender_name === name ? 'bg-blue-500' : 
-                        m.sender_name === roomOwner ? 'bg-yellow-500' : 'bg-gray-500'
+                        isMyMessage ? 'bg-blue-500' : 
+                        isOwnerMessage ? 'bg-yellow-500' : 'bg-gray-500'
                       }`}>
                         {m.sender_name.charAt(0).toUpperCase()}
-                        {m.sender_name === roomOwner && '👑'}
+                        {isOwnerMessage && '👑'}
                       </div>
                     </div>
                     
                     {/* Message Bubble */}
                     <div className={`rounded-lg px-3 py-2 ${
-                      m.sender_name === name 
+                      isMyMessage 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-white border shadow-sm text-gray-800'
                     }`}>
-                      {m.sender_name !== name && (
+                      {!isMyMessage && (
                         <div className="text-xs font-semibold mb-1 text-gray-600">
-                          {m.sender_name} {m.sender_name === roomOwner && '👑'}
+                          {m.sender_name} {isOwnerMessage && '👑'}
                         </div>
                       )}
                       <div className="text-sm break-words">
                         {m.message}
                       </div>
-                      <div className={`text-xs mt-1 ${m.sender_name === name ? 'text-blue-100' : 'text-gray-400'}`}>
+                      <div className={`text-xs mt-1 ${isMyMessage ? 'text-blue-100' : 'text-gray-400'}`}>
                         {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
           
