@@ -14,6 +14,7 @@ export default function HomePage() {
             alt="WheelWise Logo"
             width={160}
             height={160}
+            priority
             className="mx-auto mb-6 drop-shadow-2xl md:w-40 md:h-40"
           />
         </div>
@@ -80,15 +81,10 @@ export default function HomePage() {
         />
       </section>
 
-      {/* Stats Section - Removed fake stats */}
-      {/* <section className="bg-slate-800/30 rounded-2xl p-8 border border-slate-700">
-        <div className="grid md:grid-cols-4 gap-8 text-center">
-          <StatItem label="Total Spins" value="1M+" />
-          <StatItem label="Active Wheels" value="50K+" />
-          <StatItem label="Live Rooms" value="500+" />
-          <StatItem label="Users" value="100K+" />
-        </div>
-      </section> */}
+      {/* Stats Section - Real View Counter */}
+      <section className="flex justify-center py-6">
+        <ViewCounter />
+      </section>
 
       {/* Game Modes */}
       <section className="space-y-6">
@@ -116,20 +112,15 @@ export default function HomePage() {
       <section className="text-center space-y-6 py-12 bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-2xl border border-purple-500/30">
         <h2 className="text-4xl font-bold text-white">Ready to Spin?</h2>
         <p className="text-xl text-gray-300">
-          Create your first wheel and experience the fairest way to make decisions
+          Create your first wheel and experience the fun with friends in real-time!
         </p>
         <Link 
-          href="/wheel/create"
+          href="/room"
           className="inline-block px-10 py-5 bg-gradient-to-r from-neon-blue to-neon-purple rounded-lg text-white text-lg font-bold hover:shadow-2xl hover:scale-110 transition-all neon-border"
         >
           Get Started - It&apos;s Free!
         </Link>
       </section>
-
-      {/* View Counter */}
-      <div className="flex justify-center">
-        <ViewCounter />
-      </div>
     </div>
   )
 }
