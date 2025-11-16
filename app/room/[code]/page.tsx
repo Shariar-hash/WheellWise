@@ -72,12 +72,9 @@ export default function Room({ params }: { params: { code: string } }) {
 
     const initializeRoom = async () => {
       try {
-        console.log('🚀 Initializing room:', roomCode);
-        console.log('👤 User:', name, '| Owner:', isOwner);
         setConnected(true);
         
         // First, try to get existing room or create if owner
-        console.log('📡 Fetching room state from database...');
         const { data: existingRoom, error: fetchError } = await supabase
           .from('room_state')
           .select('*')
@@ -86,13 +83,11 @@ export default function Room({ params }: { params: { code: string } }) {
         
         if (fetchError && fetchError.code !== 'PGRST116') {
           // Error other than "not found"
-          console.error('❌ Database error:', fetchError);
           throw new Error(`Database error: ${fetchError.message}`);
         }
 
         if (existingRoom) {
           // Room exists, join it
-          console.log('📋 Existing room found, joining...');
           
           // **OWNERSHIP CHECK - Multiple ways to verify ownership**
           let isRoomOwner = false;
@@ -100,19 +95,16 @@ export default function Room({ params }: { params: { code: string } }) {
           // Method 1: URL parameter says owner=true
           if (isOwnerParam) {
             isRoomOwner = true;
-            console.log('👑 Owner via URL parameter');
           }
           
           // Method 2: Logged-in user's email matches room owner's email (persistent ownership)
           if (currentUser?.email && existingRoom.room_owner_email === currentUser.email) {
             isRoomOwner = true;
-            console.log('👑 Persistent ownership detected via email!');
           }
           
           // Method 3: User's name matches room owner's name (for non-logged-in users)
           if (name === existingRoom.room_owner) {
             isRoomOwner = true;
-            console.log('👑 Ownership detected via name match!');
           }
           
           // Set ownership status
@@ -125,7 +117,6 @@ export default function Room({ params }: { params: { code: string } }) {
           if (!isAlreadyInRoom) {
             // Add participant to room
             const updatedParticipants = [...existingRoom.participants, name];
-            console.log(`👤 Adding participant: ${name}. Total will be: ${updatedParticipants.length}`);
 
             const { data: updatedRoom, error: updateError } = await supabase
               .from('room_state')
@@ -138,29 +129,24 @@ export default function Room({ params }: { params: { code: string } }) {
               .single();
 
             if (updatedRoom) {
-              console.log('✅ Successfully joined room:', updatedRoom);
               setRoomState(updatedRoom);
               setParticipants(updatedRoom.participants);
               setWheelOptions(updatedRoom.wheel_options || wheelOptions);
               setRoomOwner(updatedRoom.room_owner);
               setIsSpinning(updatedRoom.is_spinning);
               setResult(updatedRoom.current_result || '');
-              toast.success(`Joined room! ${updatedRoom.participants.length} participants online`);
             }
           } else {
             // Already in room, just sync state
-            console.log('👤 Already in room, syncing state...');
             setRoomState(existingRoom);
             setParticipants(existingRoom.participants);
             setWheelOptions(existingRoom.wheel_options || wheelOptions);
             setRoomOwner(existingRoom.room_owner);
             setIsSpinning(existingRoom.is_spinning);
             setResult(existingRoom.current_result || '');
-            toast.success(`Welcome back! ${existingRoom.participants.length} participants online`);
           }
         } else if (isOwner) {
           // Create new room
-          console.log('🏗️ Creating new room...');
           const { data: newRoom, error: createError } = await supabase
             .from('room_state')
             .insert({
@@ -175,12 +161,10 @@ export default function Room({ params }: { params: { code: string } }) {
             .single();
 
           if (newRoom) {
-            console.log('✅ Room created successfully:', newRoom);
             setRoomState(newRoom);
             setParticipants([name]);
             setRoomOwner(name);
             setWheelOptions(wheelOptions);
-            toast.success('Room created successfully!');
           } else {
             throw new Error('Failed to create room');
           }
@@ -201,16 +185,12 @@ export default function Room({ params }: { params: { code: string } }) {
         }
 
       } catch (error) {
-        console.error('Error initializing room:', error);
         setConnected(false);
         toast.error('Failed to connect to room');
       }
     };
 
     const setupPolling = () => {
-      console.log('🔄 Setting up polling for room:', roomCode);
-      console.log('⚠️ Realtime not available - using polling every 2 seconds');
-      
       // Poll room state every 500ms for near real-time sync
       const pollInterval = setInterval(async () => {
         try {
@@ -234,46 +214,29 @@ export default function Room({ params }: { params: { code: string } }) {
             // Handle spin synchronization - CRITICAL for exact sync
             if (currentRoom.is_spinning && !wasSpinning) {
               // Spin just started - sync everyone to the SAME result
-              console.log('🎡 SPIN STARTED - Syncing to EXACT result for all participants');
-              console.log('🎯 Target result (same for everyone):', currentRoom.current_result);
               setIsSpinning(true);
               setTargetResult(currentRoom.current_result); // This ensures same result
               setResult(''); // Clear previous result
-              // Only show toast for non-owner
-              if (!isOwner) {
-                toast(`🎡 Spinning...`);
-              }
             } else if (currentRoom.is_spinning && wasSpinning) {
               // Still spinning - make sure targetResult stays set
               setIsSpinning(true);
               setTargetResult(currentRoom.current_result);
             } else if (!currentRoom.is_spinning && wasSpinning && currentRoom.current_result) {
               // Spin just completed
-              console.log('🎯 SPIN COMPLETED - Same result for everyone:', currentRoom.current_result);
               setIsSpinning(false);
               setResult(currentRoom.current_result);
               setTargetResult(null);
-              // No toast here - result is shown in UI
             } else {
               // No spin in progress
               setIsSpinning(false);
               setResult(currentRoom.current_result || '');
               setTargetResult(null);
             }
-            
-            // Show participant changes (only log, no toast spam)
-            if (newParticipantCount !== oldParticipantCount && oldParticipantCount > 0) {
-              if (newParticipantCount > oldParticipantCount) {
-                console.log(`👤 Participant joined: ${oldParticipantCount} → ${newParticipantCount}`);
-              } else {
-                console.log(`👤 Participant left: ${oldParticipantCount} → ${newParticipantCount}`);
-              }
-            }
+
             
             setConnected(true);
           }
         } catch (error) {
-          console.error('Polling error:', error);
           setConnected(false);
         }
       }, 500); // Poll every 500ms for fast sync
@@ -289,7 +252,6 @@ export default function Room({ params }: { params: { code: string } }) {
             .limit(50);
           
           if (error) {
-            console.error('Chat fetch error:', error);
             return;
           }
             
@@ -297,7 +259,7 @@ export default function Room({ params }: { params: { code: string } }) {
             setMessages(chatMessages);
           }
         } catch (error) {
-          console.error('Chat polling error:', error);
+          // Silent fail
         }
       }, 3000); // Poll chat every 3 seconds
       
@@ -343,10 +305,9 @@ export default function Room({ params }: { params: { code: string } }) {
                 updated_at: new Date().toISOString()
               })
               .eq('room_code', roomCode);
-            console.log(`👋 ${name} removed from room. ${updatedParticipants.length} participants remain.`);
           }
         } catch (error) {
-          console.error('Error removing participant:', error);
+          // Silent fail
         }
       }
     };
@@ -359,9 +320,6 @@ export default function Room({ params }: { params: { code: string } }) {
     if (!roomCode) return;
     
     try {
-      console.log('🔄 Manually refreshing room state...');
-      toast.loading('Refreshing room...');
-      
       const { data: currentRoom, error } = await supabase
         .from('room_state')
         .select('*')
@@ -369,21 +327,16 @@ export default function Room({ params }: { params: { code: string } }) {
         .single();
         
       if (currentRoom && !error) {
-        console.log('✅ Room state refreshed:', currentRoom);
         setRoomState(currentRoom);
         setParticipants(currentRoom.participants || []);
         setWheelOptions(currentRoom.wheel_options || wheelOptions);
         setRoomOwner(currentRoom.room_owner);
         setIsSpinning(currentRoom.is_spinning || false);
         setResult(currentRoom.current_result || '');
-        toast.dismiss();
-        toast.success(`Room synced! ${currentRoom.participants.length} participants online`);
       } else {
         throw error || new Error('Room not found');
       }
     } catch (error) {
-      console.error('Error refreshing room state:', error);
-      toast.dismiss();
       toast.error('Failed to refresh room state');
     }
   };
@@ -431,7 +384,6 @@ export default function Room({ params }: { params: { code: string } }) {
         setMessages(prev => [...prev, data]);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       toast.error('Failed to send message');
       setChat(messageToSend); // Restore message if failed
     }
@@ -444,8 +396,6 @@ export default function Room({ params }: { params: { code: string } }) {
     }
     
     try {
-      console.log('🔧 Room owner updating wheel options:', options.length, 'options');
-      
       // Update local state immediately for instant feedback
       setWheelOptions(options);
       
@@ -459,14 +409,9 @@ export default function Room({ params }: { params: { code: string } }) {
         .eq('room_code', roomCode);
 
       if (error) {
-        console.error('❌ Failed to update wheel options:', error);
         throw error;
       }
-      
-      console.log(`✅ Wheel options synchronized to all ${participants.length} participants`);
-      toast.success(`✅ Options updated for all ${participants.length} participants!`);
     } catch (error) {
-      console.error('Error updating wheel options:', error);
       toast.error('Failed to update wheel options');
     }
   };
@@ -488,9 +433,6 @@ export default function Room({ params }: { params: { code: string } }) {
     }
 
     try {
-      console.log('🎡 Room owner initiating wheel spin for all participants...');
-      toast.loading('Starting wheel spin...');
-      
       // Weight-based random selection
       const totalWeight = wheelOptions.reduce((sum, opt) => sum + ((opt.count || 1) * (opt.weight || 1)), 0);
       let random = Math.random() * totalWeight;
@@ -505,13 +447,8 @@ export default function Room({ params }: { params: { code: string } }) {
         }
       }
 
-      console.log('🎯 Pre-determined result (SAME FOR ALL):', selectedOption.label);
-      console.log('📍 Room code:', roomCode);
-      console.log('👥 Total participants:', participants.length);
-
       // STEP 1: Update database FIRST (polling will handle UI update)
       // This ensures ALL participants (including owner) get the SAME result via polling
-      console.log('STEP 1: Updating database - room_state table');
       const { data: roomData, error: roomError } = await supabase
         .from('room_state')
         .update({ 
@@ -523,16 +460,11 @@ export default function Room({ params }: { params: { code: string } }) {
         .select();
 
       if (roomError) {
-        console.error('❌ Failed to update room state:', roomError);
-        toast.dismiss();
-        toast.error('Failed to start spin - database error');
+        toast.error('Failed to start spin');
         throw roomError;
       }
-      
-      console.log('✅ Room state updated in database:', roomData);
 
       // STEP 2: Create spin event for tracking
-      console.log('STEP 2: Creating spin_events entry');
       const { data: spinData, error: spinError } = await supabase
         .from('spin_events')
         .insert({
@@ -543,26 +475,14 @@ export default function Room({ params }: { params: { code: string } }) {
         .select();
 
       if (spinError) {
-        console.error('❌ Failed to create spin event:', spinError);
-        toast.dismiss();
-        toast.error('Failed to sync spin event');
-        throw spinError;
+        // Silent fail for spin event tracking
       }
-      
-      console.log('✅ Spin event created:', spinData);
-
-      toast.dismiss();
-      console.log(`✅ Wheel spin synchronized to all ${participants.length} participants`);
-      console.log('🔔 Polling will sync the spin to all clients within 2 seconds');
-      console.log('⭐ ALL participants will see SAME result:', selectedOption.label);
-      toast.success(`🎡 Spinning for all ${participants.length} participants!`);
 
       // Note: Polling will update local state for owner too - ensures exact sync
       
       // STEP 3: After spin animation completes (4 seconds), mark as finished for all participants
       setTimeout(async () => {
         try {
-          console.log('⏱️ Spin animation complete, updating final state...');
           const { error: resultError } = await supabase
             .from('room_state')
             .update({ 
@@ -572,21 +492,14 @@ export default function Room({ params }: { params: { code: string } }) {
             })
             .eq('room_code', roomCode);
 
-          if (resultError) {
-            console.error('❌ Error finishing spin:', resultError);
-          } else {
-            console.log('✅ Spin completed and synchronized to database');
-            console.log('🔔 Polling will show final result to all participants');
-            // Note: Don't update local state here - let polling handle it
-            // This ensures ALL participants (including owner) get updated the same way
-          }
+          // Note: Don't update local state here - let polling handle it
+          // This ensures ALL participants (including owner) get updated the same way
         } catch (error) {
-          console.error('❌ Error in spin completion:', error);
+          // Silent fail
         }
       }, 4000);
 
     } catch (error) {
-      console.error('Error spinning wheel:', error);
       toast.error('Failed to spin wheel');
     }
   };
